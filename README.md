@@ -42,4 +42,4 @@ El worker escribe un MP4 de hasta 30 segundos y lo publica en `https://VIDEO_DOM
 
 ## Notas del APK
 
-El workflow de Actions usa Node 22, JDK 21, Android SDK 36 y Capacitor 8.5.2. La carpeta `frontend/android/` se genera en CI y no se versiona. El artefacto descargable se llama `VideoAIApp-Debug-APK`.
+El workflow de Actions usa Node 22, JDK 21, Android SDK 36 y Capacitor 8.5.2. El `webDir` es `frontend/www` (Capacitor 8 no acepta `.`). La carpeta `frontend/android/` se genera en CI y no se versiona. El artefacto descargable se llama `VideoAIApp-Debug-APK`.

@@ -34,7 +34,6 @@ jobs:
         run: |
           if [ ! -f package.json ]; then npm init -y; fi
           npm install @capacitor/core@8.5.2 @capacitor/cli@8.5.2 @capacitor/android@8.5.2
-          npx cap init "VideoAIApp" "com.app.videoai30s" --web-dir "."
           npx cap add android
 
       - name: Inyectar permisos de camara y almacenamiento

@@ -1,0 +1,8 @@
+{
+  "appId": "com.app.videoai30s",
+  "appName": "VideoAIApp",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
