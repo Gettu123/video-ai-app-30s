@@ -1,0 +1,13 @@
+{$PB_DOMAIN:pb.tu-dominio.com} {
+    reverse_proxy pocketbase:8090
+}
+
+{$N8N_DOMAIN:n8n.tu-dominio.com} {
+    reverse_proxy n8n:5678 {
+        flush_interval -1
+    }
+}
+
+{$VIDEO_DOMAIN:video.tu-dominio.com} {
+    reverse_proxy ai-worker:8000
+}

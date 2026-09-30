@@ -1,0 +1,9 @@
+{
+  "name": "video-ai-app-30s",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend mobile de AI Video Studio 30s. O webDir do Capacitor e esta pasta.",
+  "scripts": {
+    "build": "echo \"Static app ready\""
+  }
+}

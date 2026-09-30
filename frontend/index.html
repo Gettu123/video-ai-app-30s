@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Video Studio 30s</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between font-sans">
+
+  <!-- TOP BAR -->
+  <header class="bg-slate-900/80 backdrop-blur border-b border-slate-800 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
+    <div class="flex items-center gap-2">
+      <span class="text-xl">🎬</span>
+      <h1 class="text-sm font-bold tracking-wide bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">AI Video Studio 30s</h1>
+    </div>
+    <button id="logoutBtn" class="hidden text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-full border border-red-500/30">Cerrar Sesión</button>
+  </header>
+
+  <!-- SCREEN 1: LOGIN POCKETBASE -->
+  <section id="authSection" class="p-4 flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="text-center space-y-1">
+        <h2 class="text-lg font-bold text-white">Acceso a la Plataforma</h2>
+        <p class="text-xs text-slate-400">Autenticación con PocketBase JWT</p>
+      </div>
+
+      <div>
+        <label class="text-[11px] font-medium text-slate-400">URL PocketBase</label>
+        <input id="pbUrlInput" type="text" value="https://pb.tu-dominio.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
+      </div>
+
+      <div>
+        <label class="text-[11px] font-medium text-slate-400">URL Webhook n8n</label>
+        <input id="n8nUrlInput" type="text" value="https://n8n.tu-dominio.com/webhook/ai-video" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
+      </div>
+
+      <div>
+        <label class="text-[11px] font-medium text-slate-400">Email / Usuario</label>
+        <input id="emailInput" type="email" placeholder="usuario@ejemplo.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
+      </div>
+
+      <div>
+        <label class="text-[11px] font-medium text-slate-400">Contraseña</label>
+        <input id="passInput" type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
+      </div>
+
+      <button id="loginBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition text-sm">
+        Entrar al Estudio
+      </button>
+
+      <div id="authMsg" class="text-xs text-center min-h-[1rem]"></div>
+    </div>
+  </section>
+
+  <!-- SCREEN 2: MAIN DASHBOARD -->
+  <section id="appSection" class="hidden p-4 flex-1 flex flex-col max-w-md mx-auto w-full space-y-4">
+    
+    <!-- TABS: IMAGE TO VIDEO vs CAMERA RECORDER -->
+    <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+      <button id="tabImageToVideo" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-emerald-500 text-slate-950 transition">
+        🖼️ Imagen a Video (IA)
+      </button>
+      <button id="tabCamera" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">
+        📹 Cámara en Vivo (30s)
+      </button>
+    </div>
+
+    <!-- TAB PANEL 1: IMAGE TO VIDEO -->
+    <div id="panelImageToVideo" class="space-y-4">
+      <div class="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 text-center cursor-pointer bg-slate-900/40" onclick="document.getElementById('imageFile').click()">
+        <input type="file" id="imageFile" accept="image/*" class="hidden">
+        <div id="uploadPlaceholder" class="space-y-2 py-4">
+          <span class="text-3xl">📤</span>
+          <p class="text-xs text-slate-300 font-medium">Toca para seleccionar una imagen</p>
+          <p class="text-[10px] text-slate-500">PNG, JPG o WEBP (máx. 10MB)</p>
+        </div>
+        <img id="imagePreview" class="hidden max-h-48 mx-auto rounded-xl shadow-lg object-contain">
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-xs text-slate-400">Prompt / Instrucción de movimiento</label>
+        <input id="promptInput" type="text" placeholder="Ej.: Primer plano con zoom suave y viento en el cabello" class="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 outline-none focus:border-emerald-400">
+      </div>
+
+      <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-800">
+        <span class="text-xs text-slate-300">Duración del video</span>
+        <span class="text-xs font-bold text-emerald-400 font-mono">30 segundos</span>
+      </div>
+
+      <button id="generateVideoBtn" class="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-bold py-3.5 rounded-xl shadow-lg transition text-sm">
+        ✨ Generar Video de 30s vía n8n
+      </button>
+    </div>
+
+    <!-- TAB PANEL 2: LIVE CAMERA (30s LIMIT) -->
+    <div id="panelCamera" class="hidden space-y-4">
+      <div class="flex flex-col items-center">
+        <div id="timerText" class="text-2xl font-mono font-bold text-emerald-400">00:30</div>
+        <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mt-1">
+          <div id="camProgressBar" class="bg-emerald-400 h-full w-0"></div>
+        </div>
+      </div>
+
+      <div class="relative aspect-[9/16] max-h-[45vh] bg-black rounded-2xl overflow-hidden border border-slate-800 mx-auto w-full flex items-center justify-center">
+        <video id="liveCam" autoplay playsinline muted class="w-full h-full object-cover"></video>
+        <video id="recPlayer" playsinline controls class="hidden w-full h-full object-cover"></video>
+      </div>
+
+      <div class="space-y-2">
+        <button id="camRecordBtn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2">
+          <span>●</span> Iniciar Grabación (Máx 30s)
+        </button>
+        <button id="camStopBtn" class="hidden w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition text-xs">
+          Parar Grabación
+        </button>
+        <button id="sendCamBtn" class="hidden w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition text-xs">
+          Enviar Video al n8n
+        </button>
+      </div>
+    </div>
+
+    <!-- STATUS DISPLAY -->
+    <div id="statusBox" class="text-center text-xs text-slate-400 min-h-[1.5rem] py-1"></div>
+
+    <!-- RESULT VIDEO PREVIEW -->
+    <div id="resultBox" class="hidden bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
+      <h3 class="text-xs font-bold text-emerald-400">✓ Video Generado:</h3>
+      <video id="resultVideo" controls playsinline class="w-full rounded-xl bg-black max-h-60"></video>
+    </div>
+
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="p-3 text-center text-[10px] text-slate-600 border-t border-slate-900">
+    Full-Stack Open Source: PocketBase • n8n • AI Inode
+  </footer>
+
+  <script>
+    let token = localStorage.getItem("pb_token") || null;
+    let selectedImageBase64 = null;
+    let camStream = null;
+    let camRecorder = null;
+    let camChunks = [];
+    let camBlob = null;
+    let camTimer = null;
+    let camTimeLeft = 30;
+
+    const authSection = document.getElementById("authSection");
+    const appSection = document.getElementById("appSection");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const statusBox = document.getElementById("statusBox");
+
+    if (token) showDashboard();
+
+    // LOGIN HANDLER
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const pbUrl = document.getElementById("pbUrlInput").value.replace(/\/$/, "");
+      const email = document.getElementById("emailInput").value;
+      const pass = document.getElementById("passInput").value;
+      const msg = document.getElementById("authMsg");
+
+      msg.innerText = "Validando credenciales...";
+      try {
+        const res = await fetch(`${pbUrl}/api/collections/users/auth-with-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identity: email, password: pass })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Credenciales incorrectas");
+
+        token = data.token;
+        localStorage.setItem("pb_token", token);
+        localStorage.setItem("pb_url", pbUrl);
+        localStorage.setItem("n8n_url", document.getElementById("n8nUrlInput").value);
+        showDashboard();
+      } catch (e) {
+        msg.innerHTML = `<span class="text-red-400">${e.message}</span>`;
+      }
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("pb_token");
+      location.reload();
+    });
+
+    function showDashboard() {
+      authSection.classList.add("hidden");
+      appSection.classList.remove("hidden");
+      logoutBtn.classList.remove("hidden");
+    }
+
+    // TABS SWITCHER
+    const tabImage = document.getElementById("tabImageToVideo");
+    const tabCam = document.getElementById("tabCamera");
+    const panelImage = document.getElementById("panelImageToVideo");
+    const panelCam = document.getElementById("panelCamera");
+
+    tabImage.addEventListener("click", () => {
+      tabImage.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-emerald-500 text-slate-950 transition";
+      tabCam.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+      panelImage.classList.remove("hidden");
+      panelCam.classList.add("hidden");
+      stopCameraStream();
+    });
+
+    tabCam.addEventListener("click", () => {
+      tabCam.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-emerald-500 text-slate-950 transition";
+      tabImage.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+      panelCam.classList.remove("hidden");
+      panelImage.classList.add("hidden");
+      startCameraStream();
+    });
+
+    // IMAGE UPLOAD & PREVIEW
+    document.getElementById("imageFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        selectedImageBase64 = evt.target.result;
+        document.getElementById("imagePreview").src = selectedImageBase64;
+        document.getElementById("imagePreview").classList.remove("hidden");
+        document.getElementById("uploadPlaceholder").classList.add("hidden");
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // GENERATE VIDEO VIA N8N
+    document.getElementById("generateVideoBtn").addEventListener("click", async () => {
+      if (!selectedImageBase64) {
+        statusBox.innerHTML = "<span class='text-amber-400'>Por favor selecciona una imagen primero.</span>";
+        return;
+      }
+      const n8nUrl = localStorage.getItem("n8n_url") || "https://n8n.tu-dominio.com/webhook/ai-video";
+      const prompt = document.getElementById("promptInput").value;
+
+      statusBox.innerHTML = "<span class='text-cyan-400 animate-pulse'>Enviando imagen y activando flujo en n8n...</span>";
+
+      try {
+        const res = await fetch(n8nUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            action: "image-to-video",
+            durationSeconds: 30,
+            prompt: prompt,
+            imageBase64: selectedImageBase64
+          })
+        });
+
+        if (res.status === 401) {
+          statusBox.innerHTML = "<span class='text-red-400'>Sesión expirada. Vuelve a iniciar sesión.</span>";
+          localStorage.removeItem("pb_token");
+          return;
+        }
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || `Error HTTP ${res.status}`);
+
+        statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>✓ ¡Solicitud procesada con éxito por n8n!</span>";
+        if (data.videoUrl) {
+          document.getElementById("resultVideo").src = data.videoUrl;
+          document.getElementById("resultBox").classList.remove("hidden");
+        }
+      } catch (err) {
+        statusBox.innerHTML = `<span class='text-red-400'>Error: ${err.message}</span>`;
+      }
+    });
+
+    // CAMERA FUNCTIONS
+    async function startCameraStream() {
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+        const liveCam = document.getElementById("liveCam");
+        liveCam.srcObject = camStream;
+        liveCam.classList.remove("hidden");
+        document.getElementById("recPlayer").classList.add("hidden");
+      } catch (e) {
+        statusBox.innerText = "Acceso a cámara requerido.";
+      }
+    }
+
+    function stopCameraStream() {
+      if (camStream) {
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+    }
+
+    const camRecordBtn = document.getElementById("camRecordBtn");
+    const camStopBtn = document.getElementById("camStopBtn");
+    const sendCamBtn = document.getElementById("sendCamBtn");
+
+    camRecordBtn.addEventListener("click", () => {
+      if (!camStream) return;
+      camChunks = [];
+      const mime = (window.MediaRecorder && MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus"))
+        ? "video/webm;codecs=vp8,opus"
+        : (window.MediaRecorder && MediaRecorder.isTypeSupported("video/webm"))
+          ? "video/webm"
+          : "";
+      camRecorder = mime ? new MediaRecorder(camStream, { mimeType: mime }) : new MediaRecorder(camStream);
+      camRecorder.ondataavailable = (e) => { if (e.data.size > 0) camChunks.push(e.data); };
+      camRecorder.onstop = () => {
+        camBlob = new Blob(camChunks, { type: "video/webm" });
+        const recPlayer = document.getElementById("recPlayer");
+        recPlayer.src = URL.createObjectURL(camBlob);
+        document.getElementById("liveCam").classList.add("hidden");
+        recPlayer.classList.remove("hidden");
+        sendCamBtn.classList.remove("hidden");
+      };
+
+      camRecorder.start();
+      camRecordBtn.classList.add("hidden");
+      camStopBtn.classList.remove("hidden");
+
+      camTimeLeft = 30;
+      updateCamTimer();
+      camTimer = setInterval(() => {
+        camTimeLeft--;
+        updateCamTimer();
+        if (camTimeLeft <= 0) stopCamRecord();
+      }, 1000);
+    });
+
+    function stopCamRecord() {
+      clearInterval(camTimer);
+      if (camRecorder && camRecorder.state !== "inactive") camRecorder.stop();
+      camStopBtn.classList.add("hidden");
+      camRecordBtn.classList.remove("hidden");
+    }
+
+    camStopBtn.addEventListener("click", stopCamRecord);
+
+    function updateCamTimer() {
+      const s = camTimeLeft < 10 ? `0${camTimeLeft}` : camTimeLeft;
+      document.getElementById("timerText").innerText = `00:${s}`;
+      const pct = ((30 - camTimeLeft) / 30) * 100;
+      document.getElementById("camProgressBar").style.width = `${pct}%`;
+    }
+
+    sendCamBtn.addEventListener("click", async () => {
+      if (!camBlob) return;
+      const n8nUrl = localStorage.getItem("n8n_url") || "https://n8n.tu-dominio.com/webhook/ai-video";
+      statusBox.innerText = "Enviando video de cámara al n8n...";
+      const reader = new FileReader();
+      reader.readAsDataURL(camBlob);
+      reader.onloadend = async () => {
+        try {
+          const res = await fetch(n8nUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            body: JSON.stringify({ action: "camera-video", durationSeconds: 30 - camTimeLeft, videoBase64: reader.result })
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>✓ Video enviado al n8n!</span>";
+        } catch (e) {
+          statusBox.innerHTML = `<span class='text-red-400'>Error: ${e.message}</span>`;
+        }
+      };
+    });
+  </script>
+</body>
+</html>

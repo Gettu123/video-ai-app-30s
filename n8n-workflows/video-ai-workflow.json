@@ -1,0 +1,260 @@
+{
+  "name": "Video AI 30s Guard & Inode",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-video",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst headers = item.headers || {};\nconst authHeader = headers['authorization'] || headers['Authorization'] || '';\nconst body = item.body && typeof item.body === 'object' ? item.body : item;\n\nif (!authHeader || !/^Bearer\\s+/i.test(authHeader)) {\n  return [{ json: { isValid: false, error: 'Authorization Bearer token required', token: '', body: {} } }];\n}\n\nconst token = authHeader.replace(/^Bearer\\s+/i, '').trim();\nreturn [{ json: { isValid: true, token, body } }];"
+      },
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Extract JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://pocketbase:8090/api/collections/users/auth-refresh",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.token }}"
+            }
+          ]
+        },
+        "options": {
+          "neverError": true,
+          "timeout": 15000
+        }
+      },
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Validate with PocketBase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.token }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Is Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": \"Unauthorized: Token invalido o expirado.\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ai-worker:8000/generate-video",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ image_base64: $('Extract JWT').item.json.body.imageBase64 || '', video_base64: $('Extract JWT').item.json.body.videoBase64 || '', prompt: $('Extract JWT').item.json.body.prompt || '', duration_seconds: Math.min(30, Number($('Extract JWT').item.json.body.durationSeconds) || 30) }) }}",
+        "options": {
+          "neverError": true,
+          "timeout": 240000
+        }
+      },
+      "id": "66666666-6666-4666-8666-666666666666",
+      "name": "Call AI Video Worker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.video_url }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "77777777-7777-4777-8777-777777777777",
+      "name": "Has Video?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: $json.message || 'Video de 30 segundos generado exitosamente.', videoUrl: $json.video_url, jobId: $json.job_id, durationSeconds: $json.duration_seconds }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "88888888-8888-4888-8888-888888888888",
+      "name": "200 Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'No se pudo generar el video.', detail: $json.detail || $json.message || $json.error || 'worker error' }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "99999999-9999-4999-8999-999999999999",
+      "name": "502 Worker Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract JWT": {
+      "main": [
+        [
+          {
+            "node": "Validate with PocketBase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate with PocketBase": {
+      "main": [
+        [
+          {
+            "node": "Is Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Authorized?": {
+      "main": [
+        [
+          {
+            "node": "Call AI Video Worker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "401 Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call AI Video Worker": {
+      "main": [
+        [
+          {
+            "node": "Has Video?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Video?": {
+      "main": [
+        [
+          {
+            "node": "200 Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "502 Worker Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

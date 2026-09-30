@@ -1,0 +1,72 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "21"
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar plataformas Android
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Configurar Capacitor y proyecto Android
+        working-directory: frontend
+        run: |
+          if [ ! -f package.json ]; then npm init -y; fi
+          npm install @capacitor/core@8.5.2 @capacitor/cli@8.5.2 @capacitor/android@8.5.2
+          npx cap init "VideoAIApp" "com.app.videoai30s" --web-dir "."
+          npx cap add android
+
+      - name: Inyectar permisos de camara y almacenamiento
+        run: |
+          python3 - << 'PY'
+          from pathlib import Path
+          path = Path("frontend/android/app/src/main/AndroidManifest.xml")
+          content = path.read_text()
+          if "android.permission.CAMERA" not in content:
+              perms = """    <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+              <uses-feature android:name="android.hardware.camera" android:required="false" />
+          """
+              content = content.replace("<application", perms + "    <application", 1)
+              path.write_text(content)
+          PY
+          cd frontend && npx cap sync android
+
+      - name: Compilar APK (assembleDebug)
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Publicar APK para descarga
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoAIApp-Debug-APK
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk

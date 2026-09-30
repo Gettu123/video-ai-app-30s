@@ -1,0 +1,84 @@
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pb_data:
+  n8n_data:
+  ai_data:
+  caddy_data:
+  caddy_config:
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PB_DOMAIN: ${PB_DOMAIN:-pb.tu-dominio.com}
+      N8N_DOMAIN: ${N8N_DOMAIN:-n8n.tu-dominio.com}
+      VIDEO_DOMAIN: ${VIDEO_DOMAIN:-video.tu-dominio.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app-network
+    depends_on:
+      - pocketbase
+      - n8n
+      - ai-worker
+
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: pocketbase
+    restart: unless-stopped
+    environment:
+      PB_HOST: 0.0.0.0
+      PB_PORT: "8090"
+      TZ: America/Sao_Paulo
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-}
+      # A imagem oficial le ENCRYPTION e o entrypoint repassa --encryptionEnv.
+      ENCRYPTION: ${PB_ENCRYPTION_KEY:?Defina PB_ENCRYPTION_KEY em docker/.env com 32 caracteres}
+    command: ["--encryptionEnv", "ENCRYPTION"]
+    volumes:
+      - pb_data:/pb_data
+    networks:
+      - app-network
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n_engine
+    restart: unless-stopped
+    environment:
+      N8N_HOST: ${N8N_DOMAIN:-n8n.tu-dominio.com}
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: https
+      NODE_ENV: production
+      WEBHOOK_URL: https://${N8N_DOMAIN:-n8n.tu-dominio.com}/
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - app-network
+
+  ai-worker:
+    build:
+      context: ../ai-worker
+      dockerfile: Dockerfile
+    container_name: ai_video_worker
+    restart: unless-stopped
+    environment:
+      MAX_DURATION_SECONDS: "30"
+      OUTPUT_DIR: /app/outputs
+      PUBLIC_BASE_URL: https://${VIDEO_DOMAIN:-video.tu-dominio.com}
+    volumes:
+      - ai_data:/app/outputs
+    networks:
+      - app-network
