@@ -21,7 +21,7 @@
       <h1 class="text-sm font-bold tracking-wide bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">AI Video Studio 30s</h1>
     </div>
     <div class="flex items-center gap-2">
-      <button id="cloudBtn" class="text-xs bg-slate-800 text-slate-200 px-3 py-1.5 rounded-full border border-slate-700">Nube</button>
+      <button id="cloudBtn" class="text-xs bg-slate-800 text-slate-200 px-3 py-1.5 rounded-full border border-slate-700">Entrar</button>
       <button id="logoutBtn" class="hidden text-xs bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full border border-red-500/30">Salir</button>
     </div>
   </header>
@@ -30,8 +30,8 @@
   <section id="authSection" class="p-4 flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl space-y-4">
       <div class="text-center space-y-1">
-        <h2 class="text-lg font-bold text-white">Acceso a la Plataforma</h2>
-        <p class="text-xs text-slate-400">Autenticación con PocketBase JWT</p>
+        <h2 class="text-lg font-bold text-white">Usuário e senha</h2>
+        <p class="text-xs text-slate-400">A conta é do servidor. Sem ela, o Galaxy só faz zoom na foto e não muda barba, cabelo nem cena.</p>
       </div>
 
       <div>
@@ -45,20 +45,20 @@
       </div>
 
       <div>
-        <label class="text-[11px] font-medium text-slate-400">Email / Usuario</label>
-        <input id="emailInput" type="email" placeholder="usuario@ejemplo.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
+        <label class="text-[11px] font-medium text-slate-400">Usuário</label>
+        <input id="emailInput" type="text" placeholder="usuário ou email" autocomplete="username" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
       </div>
 
       <div>
-        <label class="text-[11px] font-medium text-slate-400">Contraseña</label>
+        <label class="text-[11px] font-medium text-slate-400">Senha</label>
         <input id="passInput" type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-emerald-400 outline-none">
       </div>
 
       <button id="loginBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition text-sm">
-        Entrar al Estudio
+        Entrar
       </button>
       <button id="localOnlyBtn" type="button" class="w-full bg-slate-800 text-slate-200 font-semibold py-3 rounded-xl text-sm border border-slate-700">
-        Usar solo en este Galaxy
+        Continuar sem conta (só zoom)
       </button>
 
       <div id="authMsg" class="text-xs text-center min-h-[1rem]"></div>
@@ -170,8 +170,9 @@
 
     <!-- RESULT VIDEO PREVIEW -->
     <div id="resultBox" class="hidden bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
-      <h3 class="text-xs font-bold text-emerald-400">✓ Video Generado:</h3>
-      <video id="resultVideo" controls playsinline class="w-full rounded-xl bg-black max-h-60"></video>
+      <h3 class="text-xs font-bold text-emerald-400">Vídeo</h3>
+      <canvas id="liveCanvas" class="hidden w-full rounded-xl bg-black" style="max-height:70vh"></canvas>
+      <video id="resultVideo" controls playsinline muted class="hidden w-full rounded-xl bg-black" style="max-height:70vh;object-fit:contain"></video>
       <button id="saveResultBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl text-xs">
         Guardar en el Galaxy
       </button>
@@ -210,7 +211,7 @@
       cloudBtn.classList.toggle("hidden", signed);
     }
 
-    showDashboard();
+    if (token) showDashboard();
 
     document.getElementById("localOnlyBtn").addEventListener("click", showDashboard);
     cloudBtn.addEventListener("click", () => {
@@ -302,7 +303,7 @@
     }
 
     const ENGINE_HINTS = {
-      ffmpeg: "Se renderiza en el Galaxy, a 720p, sin servidor. Wan, Hunyuan y CogVideoX no caben en el teléfono: usan la GPU del servidor.",
+      ffmpeg: "Só zoom na foto, aqui no Galaxy. O texto do prompt (barba, cabelo, cena) não entra. Isso pede usuário, senha e um motor do servidor.",
       "videox-fun": "Framework de encadenamiento (aigc-apps/VideoX-Fun): cada clipe nace del ultimo cuadro del anterior, hasta 30s. Exige el perfil GPU.",
       "wan2.1-i2v": "Wan2.1 I2V 14B (Alibaba, Apache-2.0). Clipe nativo ~5s a 16fps, 480p. GPU ~24GB con offload.",
       "hunyuan-i2v": "HunyuanVideo-I2V (Tencent). 129 frames a 24fps (~5s). Acepta la licencia en Hugging Face.",
@@ -336,14 +337,14 @@
             statusBox.innerHTML = `<span class='text-cyan-400'>Galaxy ${pct}%</span>`;
           });
           showResultBlob(blob);
-          statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>Listo en el teléfono. Guárdalo en los 512 GB.</span>";
+          statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>Toque o play. É zoom na foto: a barba não muda neste modo.</span>";
         } catch (err) {
           statusBox.innerHTML = `<span class='text-red-400'>No se pudo renderizar en el teléfono: ${err.message}</span>`;
         }
         return;
       }
       if (!token) {
-        statusBox.innerHTML = "<span class='text-amber-400'>Ese modelo corre en el servidor. Entra en Nube.</span>";
+        statusBox.innerHTML = "<span class='text-amber-400'>Esse modelo pede usuário e senha.</span>";
         cloudBtn.click();
         return;
       }
@@ -529,8 +530,30 @@
 
     function showResultBlob(blob) {
       lastResultBlob = blob;
-      document.getElementById("resultVideo").src = URL.createObjectURL(blob);
+      const canvas = document.getElementById("liveCanvas");
+      const video = document.getElementById("resultVideo");
+      canvas.classList.add("hidden");
+      video.classList.remove("hidden");
+      const url = URL.createObjectURL(blob);
+      video.pause();
+      video.src = url;
+      video.muted = true;
+      video.playsInline = true;
       document.getElementById("resultBox").classList.remove("hidden");
+      video.onloadedmetadata = () => {
+        const start = () => video.play().catch(() => {});
+        if (!Number.isFinite(video.duration)) {
+          video.currentTime = 1e101;
+          video.ontimeupdate = () => {
+            video.ontimeupdate = null;
+            video.currentTime = 0;
+            start();
+          };
+        } else {
+          start();
+        }
+      };
+      video.scrollIntoView({ block: "center" });
     }
 
     async function ensureNativeMediaPermissions() {
@@ -582,11 +605,30 @@
       const scale = Math.min(1, longEdge / Math.max(img.width, img.height));
       const w = Math.max(2, Math.round(img.width * scale / 2) * 2);
       const h = Math.max(2, Math.round(img.height * scale / 2) * 2);
-      const canvas = document.createElement("canvas");
+      const canvas = document.getElementById("liveCanvas");
+      const video = document.getElementById("resultVideo");
       canvas.width = w;
       canvas.height = h;
+      video.classList.add("hidden");
+      canvas.classList.remove("hidden");
+      document.getElementById("resultBox").classList.remove("hidden");
+      canvas.scrollIntoView({ block: "center" });
       const ctx = canvas.getContext("2d", { alpha: false });
       const stream = canvas.captureStream(30);
+      let audioStop = () => {};
+      try {
+        const audioCtx = new AudioContext();
+        await audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0;
+        const dest = audioCtx.createMediaStreamDestination();
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        stream.addTrack(dest.stream.getAudioTracks()[0]);
+        audioStop = () => { try { osc.stop(); } catch (e) {} audioCtx.close(); };
+      } catch (e) {}
       const mime = pickRecorderMime();
       const rec = mime
         ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 })
@@ -600,10 +642,11 @@
       await new Promise((resolve) => {
         function frame(now) {
           const t = Math.min(1, (now - t0) / (seconds * 1000));
-          const zoom = 1 + 0.18 * t;
+          const zoom = 1 + 0.45 * t;
+          const panY = (h * 0.12) * Math.sin(t * Math.PI);
           ctx.fillStyle = "#000";
           ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, (w - w * zoom) / 2, (h - h * zoom) / 2, w * zoom, h * zoom);
+          ctx.drawImage(img, (w - w * zoom) / 2, (h - h * zoom) / 2 - panY, w * zoom, h * zoom);
           const pct = Math.round(t * 100);
           if (pct !== shown) {
             shown = pct;
@@ -616,6 +659,7 @@
       });
       rec.stop();
       await stopped;
+      audioStop();
       stream.getTracks().forEach((track) => track.stop());
       return new Blob(chunks, { type: rec.mimeType || mime || "video/webm" });
     }
