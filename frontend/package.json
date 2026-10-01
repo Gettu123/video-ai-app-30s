@@ -5,5 +5,8 @@
   "description": "Frontend mobile de AI Video Studio 30s. O webDir do Capacitor e esta pasta.",
   "scripts": {
     "build": "echo \"Static app ready\""
+  },
+  "dependencies": {
+    "tailwindcss": "^3.4.17"
   }
 }

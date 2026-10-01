@@ -2,9 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#020617">
   <title>AI Video Studio 30s</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    header { padding-top: calc(0.75rem + env(safe-area-inset-top)); }
+    footer { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+    button, [role="button"] { cursor: pointer; }
+  </style>
 </head>
 <body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between font-sans">
 
@@ -14,7 +20,10 @@
       <span class="text-xl">🎬</span>
       <h1 class="text-sm font-bold tracking-wide bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">AI Video Studio 30s</h1>
     </div>
-    <button id="logoutBtn" class="hidden text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-full border border-red-500/30">Cerrar Sesión</button>
+    <div class="flex items-center gap-2">
+      <button id="cloudBtn" class="text-xs bg-slate-800 text-slate-200 px-3 py-1.5 rounded-full border border-slate-700">Nube</button>
+      <button id="logoutBtn" class="hidden text-xs bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full border border-red-500/30">Salir</button>
+    </div>
   </header>
 
   <!-- SCREEN 1: LOGIN POCKETBASE -->
@@ -48,6 +57,9 @@
       <button id="loginBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition text-sm">
         Entrar al Estudio
       </button>
+      <button id="localOnlyBtn" type="button" class="w-full bg-slate-800 text-slate-200 font-semibold py-3 rounded-xl text-sm border border-slate-700">
+        Usar solo en este Galaxy
+      </button>
 
       <div id="authMsg" class="text-xs text-center min-h-[1rem]"></div>
     </div>
@@ -69,7 +81,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
       <label class="text-xs text-slate-400" for="engineSelect">Motor</label>
       <select id="engineSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 outline-none focus:border-emerald-400">
-        <option value="ffmpeg">Ken Burns — sin GPU</option>
+        <option value="ffmpeg">En el Galaxy — Ken Burns 30s</option>
         <option value="videox-fun">VideoX-Fun — encadena hasta 30s</option>
         <option value="wan2.1-i2v">Wan2.1 I2V — Alibaba</option>
         <option value="hunyuan-i2v">HunyuanVideo-I2V — Tencent</option>
@@ -119,7 +131,7 @@
       </div>
 
       <button id="generateVideoBtn" class="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-bold py-3.5 rounded-xl shadow-lg transition text-sm">
-        ✨ Generar Video de 30s vía n8n
+        ✨ Generar 30s en el Galaxy
       </button>
     </div>
 
@@ -145,7 +157,10 @@
           Parar Grabación
         </button>
         <button id="sendCamBtn" class="hidden w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition text-xs">
-          Enviar Video al n8n
+          Enviar al servidor
+        </button>
+        <button id="saveCamBtn" class="hidden w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition text-xs">
+          Guardar en el Galaxy
         </button>
       </div>
     </div>
@@ -157,13 +172,16 @@
     <div id="resultBox" class="hidden bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
       <h3 class="text-xs font-bold text-emerald-400">✓ Video Generado:</h3>
       <video id="resultVideo" controls playsinline class="w-full rounded-xl bg-black max-h-60"></video>
+      <button id="saveResultBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl text-xs">
+        Guardar en el Galaxy
+      </button>
     </div>
 
   </section>
 
   <!-- FOOTER -->
   <footer class="p-3 text-center text-[10px] text-slate-600 border-t border-slate-900">
-    Full-Stack Open Source: PocketBase • n8n • AI Inode
+    En el Galaxy: cámara y Ken Burns. En tu servidor: Wan, Hunyuan, CogVideoX.
   </footer>
 
   <script>
@@ -176,12 +194,36 @@
     let camTimer = null;
     let camTimeLeft = 30;
 
+    let lastResultBlob = null;
+
     const authSection = document.getElementById("authSection");
     const appSection = document.getElementById("appSection");
     const logoutBtn = document.getElementById("logoutBtn");
+    const cloudBtn = document.getElementById("cloudBtn");
     const statusBox = document.getElementById("statusBox");
 
-    if (token) showDashboard();
+    function showDashboard() {
+      authSection.classList.add("hidden");
+      appSection.classList.remove("hidden");
+      const signed = !!token;
+      logoutBtn.classList.toggle("hidden", !signed);
+      cloudBtn.classList.toggle("hidden", signed);
+    }
+
+    showDashboard();
+
+    document.getElementById("localOnlyBtn").addEventListener("click", showDashboard);
+    cloudBtn.addEventListener("click", () => {
+      stopCameraStream();
+      appSection.classList.add("hidden");
+      authSection.classList.remove("hidden");
+    });
+
+    if (window.Capacitor?.isNativePlatform?.()) {
+      const bar = window.Capacitor.Plugins?.StatusBar;
+      bar?.setBackgroundColor?.({ color: "#020617" });
+      bar?.setStyle?.({ style: "DARK" });
+    }
 
     // LOGIN HANDLER
     document.getElementById("loginBtn").addEventListener("click", async () => {
@@ -212,14 +254,9 @@
 
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem("pb_token");
-      location.reload();
+      token = null;
+      showDashboard();
     });
-
-    function showDashboard() {
-      authSection.classList.add("hidden");
-      appSection.classList.remove("hidden");
-      logoutBtn.classList.remove("hidden");
-    }
 
     // TABS SWITCHER
     const tabImage = document.getElementById("tabImageToVideo");
@@ -265,7 +302,7 @@
     }
 
     const ENGINE_HINTS = {
-      ffmpeg: "Sin GPU. Movimiento Ken Burns sobre la foto, 30s en un solo pase.",
+      ffmpeg: "Se renderiza en el Galaxy, a 720p, sin servidor. Wan, Hunyuan y CogVideoX no caben en el teléfono: usan la GPU del servidor.",
       "videox-fun": "Framework de encadenamiento (aigc-apps/VideoX-Fun): cada clipe nace del ultimo cuadro del anterior, hasta 30s. Exige el perfil GPU.",
       "wan2.1-i2v": "Wan2.1 I2V 14B (Alibaba, Apache-2.0). Clipe nativo ~5s a 16fps, 480p. GPU ~24GB con offload.",
       "hunyuan-i2v": "HunyuanVideo-I2V (Tencent). 129 frames a 24fps (~5s). Acepta la licencia en Hugging Face.",
@@ -279,6 +316,8 @@
       document.getElementById("baseEngineWrap").classList.toggle("hidden", engine !== "videox-fun");
       document.getElementById("chainWrap").classList.toggle("hidden", engine === "ffmpeg" || engine === "videox-fun");
       document.getElementById("engineHint").textContent = ENGINE_HINTS[engine] || "";
+      const btn = document.getElementById("generateVideoBtn");
+      btn.textContent = engine === "ffmpeg" ? "✨ Generar 30s en el Galaxy" : "✨ Generar en el servidor (GPU)";
     }
     document.getElementById("engineSelect").addEventListener("change", refreshEngineUi);
     refreshEngineUi();
@@ -289,13 +328,28 @@
         statusBox.innerHTML = "<span class='text-amber-400'>Por favor selecciona una imagen primero.</span>";
         return;
       }
+      const motor = enginePayload();
+      if (motor.engine === "ffmpeg") {
+        try {
+          statusBox.innerHTML = "<span class='text-cyan-400 animate-pulse'>Renderizando 30s en el Galaxy…</span>";
+          const blob = await kenBurnsBlob(selectedImageBase64, 30, (pct) => {
+            statusBox.innerHTML = `<span class='text-cyan-400'>Galaxy ${pct}%</span>`;
+          });
+          showResultBlob(blob);
+          statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>Listo en el teléfono. Guárdalo en los 512 GB.</span>";
+        } catch (err) {
+          statusBox.innerHTML = `<span class='text-red-400'>No se pudo renderizar en el teléfono: ${err.message}</span>`;
+        }
+        return;
+      }
+      if (!token) {
+        statusBox.innerHTML = "<span class='text-amber-400'>Ese modelo corre en el servidor. Entra en Nube.</span>";
+        cloudBtn.click();
+        return;
+      }
       const n8nUrl = localStorage.getItem("n8n_url") || "https://n8n.tu-dominio.com/webhook/ai-video";
       const prompt = document.getElementById("promptInput").value;
-      const motor = enginePayload();
-      const wait = motor.engine === "ffmpeg"
-        ? "Enviando imagen y activando flujo en n8n..."
-        : "Generando con el modelo elegido. Cada clipe puede tardar varios minutos...";
-      statusBox.innerHTML = `<span class='text-cyan-400 animate-pulse'>${wait}</span>`;
+      statusBox.innerHTML = "<span class='text-cyan-400 animate-pulse'>Generando en el servidor. Cada clipe puede tardar varios minutos...</span>";
 
       try {
         const res = await fetch(n8nUrl, {
@@ -314,8 +368,10 @@
         });
 
         if (res.status === 401) {
-          statusBox.innerHTML = "<span class='text-red-400'>Sesión expirada. Vuelve a iniciar sesión.</span>";
+          token = null;
           localStorage.removeItem("pb_token");
+          showDashboard();
+          statusBox.innerHTML = "<span class='text-red-400'>Sesión expirada. Vuelve a entrar en Nube.</span>";
           return;
         }
 
@@ -324,6 +380,7 @@
 
         statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>✓ ¡Solicitud procesada con éxito por n8n!</span>";
         if (data.videoUrl) {
+          lastResultBlob = null;
           document.getElementById("resultVideo").src = data.videoUrl;
           document.getElementById("resultBox").classList.remove("hidden");
         }
@@ -335,13 +392,17 @@
     // CAMERA FUNCTIONS
     async function startCameraStream() {
       try {
-        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+        await ensureNativeMediaPermissions();
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: true
+        });
         const liveCam = document.getElementById("liveCam");
         liveCam.srcObject = camStream;
         liveCam.classList.remove("hidden");
         document.getElementById("recPlayer").classList.add("hidden");
       } catch (e) {
-        statusBox.innerText = "Acceso a cámara requerido.";
+        statusBox.innerText = "El Galaxy bloqueó la cámara. Acepta el permiso y vuelve a abrir la pestaña.";
       }
     }
 
@@ -359,20 +420,17 @@
     camRecordBtn.addEventListener("click", () => {
       if (!camStream) return;
       camChunks = [];
-      const mime = (window.MediaRecorder && MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus"))
-        ? "video/webm;codecs=vp8,opus"
-        : (window.MediaRecorder && MediaRecorder.isTypeSupported("video/webm"))
-          ? "video/webm"
-          : "";
-      camRecorder = mime ? new MediaRecorder(camStream, { mimeType: mime }) : new MediaRecorder(camStream);
+      const mime = pickRecorderMime();
+      camRecorder = mime ? new MediaRecorder(camStream, { mimeType: mime, videoBitsPerSecond: 8000000 }) : new MediaRecorder(camStream);
       camRecorder.ondataavailable = (e) => { if (e.data.size > 0) camChunks.push(e.data); };
       camRecorder.onstop = () => {
-        camBlob = new Blob(camChunks, { type: "video/webm" });
+        camBlob = new Blob(camChunks, { type: camRecorder.mimeType || mime || "video/webm" });
         const recPlayer = document.getElementById("recPlayer");
         recPlayer.src = URL.createObjectURL(camBlob);
         document.getElementById("liveCam").classList.add("hidden");
         recPlayer.classList.remove("hidden");
         sendCamBtn.classList.remove("hidden");
+        document.getElementById("saveCamBtn").classList.remove("hidden");
       };
 
       camRecorder.start();
@@ -406,6 +464,10 @@
 
     sendCamBtn.addEventListener("click", async () => {
       if (!camBlob) return;
+      if (!token) {
+        statusBox.innerHTML = "<span class='text-amber-400'>La toma ya está en el teléfono. El servidor pide entrar en Nube.</span>";
+        return;
+      }
       const n8nUrl = localStorage.getItem("n8n_url") || "https://n8n.tu-dominio.com/webhook/ai-video";
       statusBox.innerText = "Enviando video de cámara al n8n...";
       const reader = new FileReader();
@@ -424,6 +486,139 @@
         }
       };
     });
+
+    document.getElementById("saveCamBtn").addEventListener("click", async () => {
+      if (!camBlob) return;
+      try {
+        await saveBlobToGalaxy(camBlob, fileNameFor(camBlob));
+        statusBox.innerHTML = "<span class='text-emerald-400'>Elige Guardar o Galería en la hoja del Galaxy.</span>";
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+        statusBox.innerHTML = `<span class='text-red-400'>${e.message}</span>`;
+      }
+    });
+
+    document.getElementById("saveResultBtn").addEventListener("click", async () => {
+      try {
+        let blob = lastResultBlob;
+        if (!blob) {
+          const src = document.getElementById("resultVideo").src;
+          if (!src) return;
+          blob = await fetch(src).then((r) => r.blob());
+        }
+        await saveBlobToGalaxy(blob, fileNameFor(blob));
+        statusBox.innerHTML = "<span class='text-emerald-400'>Elige Guardar o Galería en la hoja del Galaxy.</span>";
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+        statusBox.innerHTML = `<span class='text-red-400'>No se pudo guardar: ${e.message}</span>`;
+      }
+    });
+
+    function fileNameFor(blob) {
+      const ext = (blob.type || "").includes("mp4") ? "mp4" : "webm";
+      return `video-ai-${Date.now()}.${ext}`;
+    }
+
+    function pickRecorderMime() {
+      const candidates = ["video/mp4", "video/webm;codecs=vp8,opus", "video/webm;codecs=vp9", "video/webm"];
+      for (const candidate of candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(candidate)) return candidate;
+      }
+      return "";
+    }
+
+    function showResultBlob(blob) {
+      lastResultBlob = blob;
+      document.getElementById("resultVideo").src = URL.createObjectURL(blob);
+      document.getElementById("resultBox").classList.remove("hidden");
+    }
+
+    async function ensureNativeMediaPermissions() {
+      const cap = window.Capacitor;
+      if (!cap?.isNativePlatform?.()) return;
+      try {
+        await cap.Plugins?.Camera?.requestPermissions?.({ permissions: ["camera", "photos"] });
+      } catch (e) {}
+    }
+
+    async function saveBlobToGalaxy(blob, filename) {
+      const file = new File([blob], filename, { type: blob.type || "video/webm" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Video AI" });
+        return;
+      }
+      const cap = window.Capacitor;
+      if (cap?.isNativePlatform?.() && cap.Plugins?.Filesystem && cap.Plugins?.Share) {
+        const data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const path = `VideoAI/${filename}`;
+        await cap.Plugins.Filesystem.writeFile({ path, data, directory: "DOCUMENTS", recursive: true });
+        const { uri } = await cap.Plugins.Filesystem.getUri({ path, directory: "DOCUMENTS" });
+        await cap.Plugins.Share.share({ title: "Video AI", files: [uri], dialogTitle: "Guardar en el Galaxy" });
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    function loadHtmlImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("imagen ilegible"));
+        img.src = src;
+      });
+    }
+
+    async function kenBurnsBlob(dataUrl, seconds, onProgress) {
+      const img = await loadHtmlImage(dataUrl);
+      const longEdge = 1280;
+      const scale = Math.min(1, longEdge / Math.max(img.width, img.height));
+      const w = Math.max(2, Math.round(img.width * scale / 2) * 2);
+      const h = Math.max(2, Math.round(img.height * scale / 2) * 2);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      const stream = canvas.captureStream(30);
+      const mime = pickRecorderMime();
+      const rec = mime
+        ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 })
+        : new MediaRecorder(stream);
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      const stopped = new Promise((resolve) => { rec.onstop = resolve; });
+      rec.start(250);
+      const t0 = performance.now();
+      let shown = -1;
+      await new Promise((resolve) => {
+        function frame(now) {
+          const t = Math.min(1, (now - t0) / (seconds * 1000));
+          const zoom = 1 + 0.18 * t;
+          ctx.fillStyle = "#000";
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, (w - w * zoom) / 2, (h - h * zoom) / 2, w * zoom, h * zoom);
+          const pct = Math.round(t * 100);
+          if (pct !== shown) {
+            shown = pct;
+            onProgress(pct);
+          }
+          if (t < 1) requestAnimationFrame(frame);
+          else resolve();
+        }
+        requestAnimationFrame(frame);
+      });
+      rec.stop();
+      await stopped;
+      stream.getTracks().forEach((track) => track.stop());
+      return new Blob(chunks, { type: rec.mimeType || mime || "video/webm" });
+    }
   </script>
 </body>
 </html>

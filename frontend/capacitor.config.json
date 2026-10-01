@@ -1,7 +1,11 @@
 {
   "appId": "com.app.videoai30s",
-  "appName": "VideoAIApp",
+  "appName": "VideoAI Studio",
   "webDir": "www",
+  "android": {
+    "backgroundColor": "#020617",
+    "allowMixedContent": true
+  },
   "server": {
     "androidScheme": "https"
   }

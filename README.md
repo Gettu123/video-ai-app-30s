@@ -65,4 +65,4 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 
 ## Notas del APK
 
-El workflow de Actions usa Node 22, JDK 21, Android SDK 36 y Capacitor 8.5.2. El `webDir` es `frontend/www` (Capacitor 8 no acepta `.`). La carpeta `frontend/android/` se genera en CI y no se versiona. El artefacto descargable se llama `VideoAIApp-Debug-APK`.
+El workflow de Actions usa Node 22, JDK 21, Android SDK 36 y Capacitor 8.5.2. El `webDir` es `frontend/www` (Capacitor 8 no acepta `.`). La carpeta `frontend/android/` se genera en CI y no se versiona. El artefacto descargable se llama `VideoAIApp-Debug-APK`. En un Galaxy Ultra se instala como APK de depuración (orígenes desconocidos). En el teléfono funcionan la cámara, el Ken Burns de 30s a 720p y guardar el video en los 512 GB. Wan2.1, HunyuanVideo y CogVideoX no corren en el aparato: siguen en el servidor con perfil GPU.

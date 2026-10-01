@@ -33,25 +33,88 @@ jobs:
         working-directory: frontend
         run: |
           if [ ! -f package.json ]; then npm init -y; fi
-          npm install @capacitor/core@8.5.2 @capacitor/cli@8.5.2 @capacitor/android@8.5.2
+          npm install @capacitor/core@8.5.2 @capacitor/cli@8.5.2 @capacitor/android@8.5.2 @capacitor/camera@8 @capacitor/filesystem@8 @capacitor/share@8 @capacitor/status-bar@8
           npx cap add android
 
       - name: Inyectar permisos de camara y almacenamiento
         run: |
           python3 - << 'PY'
           from pathlib import Path
-          path = Path("frontend/android/app/src/main/AndroidManifest.xml")
-          content = path.read_text()
-          if "android.permission.CAMERA" not in content:
-              perms = """    <uses-permission android:name="android.permission.INTERNET" />
+          import re
+          root = Path("frontend/android")
+          manifest = root / "app/src/main/AndroidManifest.xml"
+          content = manifest.read_text()
+          perms = """
+              <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
               <uses-feature android:name="android.hardware.camera" android:required="false" />
+              <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
           """
-              content = content.replace("<application", perms + "    <application", 1)
-              path.write_text(content)
+          if "android.permission.CAMERA" not in content:
+              content = content.replace("<application", perms + "\n    <application", 1)
+          if "usesCleartextTraffic" not in content:
+              content = content.replace("<application", '<application android:usesCleartextTraffic="true"', 1)
+          manifest.write_text(content)
+
+          java = list(root.glob("app/src/main/java/**/MainActivity.java"))
+          kotlin = list(root.glob("app/src/main/**/MainActivity.kt"))
+          if java:
+              src = java[0]
+              text = src.read_text()
+              if "RECORD_AUDIO" not in text:
+                  text = text.replace(
+                      "import com.getcapacitor.BridgeActivity;",
+                      "import android.Manifest;\nimport android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;",
+                  )
+                  needle = re.search(r"public class MainActivity extends BridgeActivity\s*\{[^}]*\}", text)
+                  body = """public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  requestPermissions(new String[]{
+                      Manifest.permission.CAMERA,
+                      Manifest.permission.RECORD_AUDIO
+                  }, 4101);
+              }
+          }"""
+                  if not needle:
+                      raise SystemExit("MainActivity.java inesperado")
+                  src.write_text(text[:needle.start()] + body + text[needle.end():])
+          elif kotlin:
+              src = kotlin[0]
+              text = src.read_text()
+              if "RECORD_AUDIO" not in text:
+                  lines = text.splitlines()
+                  out = []
+                  inserted = False
+                  for line in lines:
+                      out.append(line)
+                      if (not inserted) and line.startswith("package "):
+                          out.append("import android.Manifest")
+                          out.append("import android.os.Bundle")
+                          inserted = True
+                  text = chr(10).join(out) + chr(10)
+                  text = text.replace(
+                      "class MainActivity : BridgeActivity()",
+                      """class MainActivity : BridgeActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  requestPermissions(arrayOf(
+                      Manifest.permission.CAMERA,
+                      Manifest.permission.RECORD_AUDIO
+                  ), 4101)
+              }
+          }""",
+                      1,
+                  )
+                  src.write_text(text)
+          else:
+              raise SystemExit("MainActivity no encontrado")
           PY
           cd frontend && npx cap sync android
 
