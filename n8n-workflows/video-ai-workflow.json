@@ -105,10 +105,10 @@
         "url": "http://ai-worker:8000/generate-video",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ image_base64: $('Extract JWT').item.json.body.imageBase64 || '', video_base64: $('Extract JWT').item.json.body.videoBase64 || '', prompt: $('Extract JWT').item.json.body.prompt || '', duration_seconds: Math.min(30, Number($('Extract JWT').item.json.body.durationSeconds) || 30) }) }}",
+        "jsonBody": "={{ JSON.stringify({ image_base64: $('Extract JWT').item.json.body.imageBase64 || '', video_base64: $('Extract JWT').item.json.body.videoBase64 || '', prompt: $('Extract JWT').item.json.body.prompt || '', duration_seconds: Math.min(30, Number($('Extract JWT').item.json.body.durationSeconds) || 30), engine: $('Extract JWT').item.json.body.engine || 'ffmpeg', base_engine: $('Extract JWT').item.json.body.baseEngine || 'cogvideox1.5-i2v', chain: $('Extract JWT').item.json.body.chain !== false }) }}",
         "options": {
           "neverError": true,
-          "timeout": 240000
+          "timeout": 3600000
         }
       },
       "id": "66666666-6666-4666-8666-666666666666",

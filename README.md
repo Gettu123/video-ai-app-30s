@@ -8,7 +8,8 @@ Sistema completo desacoplado, autoalojado (Self-Hosted) y sin cuotas para genera
 - **`docker/`**:
   - `docker-compose.yml`: Orquestación de PocketBase (Auth/DB), n8n (Motor de flujos), AI Video Worker (API de inferencia Image-to-Video) y Caddy (Reverse Proxy con SSL).
   - `Caddyfile`: Configuración de dominios y SSL automático.
-- **`ai-worker/`**: Microservicio Python (FastAPI) preparado para conectarse a modelos Open Source de GitHub (Deforum / Stable Video Diffusion / LivePortrait / CogVideoX / ComfyUI) para generar videos de hasta 30 segundos a partir de una imagen.
+- **`ai-worker/`**: FastAPI. Ken Burns (sin GPU) o, con el perfil NVIDIA, Wan2.1 I2V, HunyuanVideo, HunyuanVideo-I2V y CogVideoX / CogVideoX1.5. VideoX-Fun encadena el ultimo cuadro hasta 30s.
+- **`docker/docker-compose.gpu.yml`**: mismo stack con el worker en PyTorch CUDA.
 - **`frontend/`**: Aplicación web móvil lista para compilar a APK (HTML5 + Tailwind + MediaRecorder + Image Upload + PocketBase Auth + n8n Handshake).
 - **`n8n-workflows/`**: Flujo JSON de n8n con nodo Webhook, validación de JWT contra PocketBase, llamada al worker de IA y respuesta estructurada.
 
@@ -38,7 +39,29 @@ Sistema completo desacoplado, autoalojado (Self-Hosted) y sin cuotas para genera
 6. En n8n, importa `n8n-workflows/video-ai-workflow.json` y **activa** el workflow. El webhook queda en `/webhook/ai-video`.
 7. En la app, configura la URL de PocketBase y la del webhook.
 
-El worker escribe un MP4 de hasta 30 segundos y lo publica en `https://VIDEO_DOMAIN/outputs/<job>.mp4`. Una imagen se anima con Ken Burns (FFmpeg) y el prompt se guarda al lado del job para conectar despues Deforum, SVD, LivePortrait, CogVideoX o ComfyUI. Un video de la camara se recorta a la duracion pedida.
+El worker escribe un MP4 de hasta 30 segundos y lo publica en `https://VIDEO_DOMAIN/outputs/<job>.mp4`.
+
+## Motores
+
+Ninguno de estos modelos suelta 30s en un solo forward. El modo **VideoX-Fun** repite la idea de [aigc-apps/VideoX-Fun](https://github.com/aigc-apps/VideoX-Fun): el ultimo cuadro de un clipe es la imagen del siguiente, y FFmpeg concatena.
+
+| Motor | Repo | Clipe nativo | Notas |
+| --- | --- | --- | --- |
+| Ken Burns | FFmpeg local | 30s | La imagen slim. No usa GPU. |
+| Wan2.1 I2V 14B | [Wan-Video/Wan2.1](https://github.com/Wan-Video/Wan2.1) | 81 frames @ 16fps (~5s) | `Wan-AI/Wan2.1-I2V-14B-480P-Diffusers`. Apache-2.0. |
+| HunyuanVideo-I2V | [Tencent-Hunyuan/HunyuanVideo-I2V](https://github.com/Tencent-Hunyuan/HunyuanVideo-I2V) | 129 frames @ 24fps (~5s) | Pesos Diffusers `hunyuanvideo-community/HunyuanVideo-I2V`. |
+| HunyuanVideo | [Tencent-Hunyuan/HunyuanVideo](https://github.com/Tencent-Hunyuan/HunyuanVideo) | ~5s | Texto a video. La extension usa I2V. |
+| CogVideoX-5B I2V | [zai-org/CogVideo](https://github.com/zai-org/CogVideo) | 49 frames @ 8fps (~6s) | `THUDM/CogVideoX-5b-I2V`. |
+| CogVideoX1.5 I2V | [zai-org/CogVideo](https://github.com/zai-org/CogVideo) | 81 frames @ 8fps (~10s) | `THUDM/CogVideoX1.5-5B-I2V`. Tres clipes cubren 30s. |
+
+Los pesos no van en la imagen Docker. La primera peticion los baja al volumen `hf_cache`. Hunyuan y CogVideoX piden aceptar la licencia en Hugging Face y, si el repo es gated, `HF_TOKEN` en `docker/.env`.
+
+```bash
+cd docker
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+```
+
+`GET /engines` en el dominio de video dice que motor tiene CUDA. Despues de cambiar el workflow, vuelve a importar `n8n-workflows/video-ai-workflow.json` (el nodo ahora reenvia `engine`, `base_engine` y `chain`, con timeout de 60 minutos).
 
 ## Notas del APK
 

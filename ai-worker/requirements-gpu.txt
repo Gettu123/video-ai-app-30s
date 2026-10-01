@@ -1,0 +1,9 @@
+diffusers>=0.33.0
+transformers>=4.46.2
+accelerate>=1.1.1
+sentencepiece>=0.2.0
+protobuf>=4.25.0
+ftfy>=6.2.0
+imageio>=2.34.0
+imageio-ffmpeg>=0.5.1
+einops>=0.8.0

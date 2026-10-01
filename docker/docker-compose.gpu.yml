@@ -1,0 +1,24 @@
+# Perfil NVIDIA. Na pasta docker/:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+# A primeira geracao baixa os pesos (dezenas de GB) para o volume hf_cache.
+services:
+  ai-worker:
+    build:
+      context: ../ai-worker
+      dockerfile: Dockerfile.gpu
+    environment:
+      MAX_DURATION_SECONDS: "30"
+      OUTPUT_DIR: /app/outputs
+      PUBLIC_BASE_URL: https://${VIDEO_DOMAIN:-video.tu-dominio.com}
+      HF_HOME: /models/huggingface
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      VRAM_MODE: ${VRAM_MODE:-offload}
+      MAX_CHAIN_SEGMENTS: ${MAX_CHAIN_SEGMENTS:-6}
+    volumes:
+      - ai_data:/app/outputs
+      - hf_cache:/models/huggingface
+    gpus: all
+
+volumes:
+  hf_cache:

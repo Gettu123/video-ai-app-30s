@@ -66,6 +66,36 @@
       </button>
     </div>
 
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+      <label class="text-xs text-slate-400" for="engineSelect">Motor</label>
+      <select id="engineSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 outline-none focus:border-emerald-400">
+        <option value="ffmpeg">Ken Burns — sin GPU</option>
+        <option value="videox-fun">VideoX-Fun — encadena hasta 30s</option>
+        <option value="wan2.1-i2v">Wan2.1 I2V — Alibaba</option>
+        <option value="hunyuan-i2v">HunyuanVideo-I2V — Tencent</option>
+        <option value="hunyuan-t2v">HunyuanVideo T2V — Tencent</option>
+        <option value="cogvideox1.5-i2v">CogVideoX1.5 I2V — Zhipu / THUDM</option>
+        <option value="cogvideox-5b-i2v">CogVideoX-5B I2V — Zhipu / THUDM</option>
+      </select>
+      <div id="baseEngineWrap" class="hidden space-y-1">
+        <label class="text-[11px] text-slate-500" for="baseEngineSelect">Modelo que VideoX-Fun encadena</label>
+        <select id="baseEngineSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 outline-none focus:border-emerald-400">
+          <option value="cogvideox1.5-i2v">CogVideoX1.5 (~10s por clipe)</option>
+          <option value="cogvideox-5b-i2v">CogVideoX-5B (~6s)</option>
+          <option value="wan2.1-i2v">Wan2.1 I2V (~5s)</option>
+          <option value="hunyuan-i2v">HunyuanVideo-I2V (~5s)</option>
+          <option value="hunyuan-t2v">HunyuanVideo T2V, luego I2V</option>
+        </select>
+      </div>
+      <div id="chainWrap" class="hidden">
+        <label class="flex items-center gap-2 text-[11px] text-slate-400">
+          <input id="chainToggle" type="checkbox" checked class="accent-emerald-400">
+          Encadenar clipes hasta 30s
+        </label>
+      </div>
+      <p id="engineHint" class="text-[10px] leading-relaxed text-slate-500">Sin GPU. Movimiento Ken Burns sobre la foto.</p>
+    </div>
+
     <!-- TAB PANEL 1: IMAGE TO VIDEO -->
     <div id="panelImageToVideo" class="space-y-4">
       <div class="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 text-center cursor-pointer bg-slate-900/40" onclick="document.getElementById('imageFile').click()">
@@ -227,6 +257,32 @@
       reader.readAsDataURL(file);
     });
 
+    function enginePayload() {
+      const engine = document.getElementById("engineSelect").value;
+      const baseEngine = document.getElementById("baseEngineSelect").value;
+      const chain = engine === "videox-fun" || (engine !== "ffmpeg" && document.getElementById("chainToggle").checked);
+      return { engine, baseEngine, chain };
+    }
+
+    const ENGINE_HINTS = {
+      ffmpeg: "Sin GPU. Movimiento Ken Burns sobre la foto, 30s en un solo pase.",
+      "videox-fun": "Framework de encadenamiento (aigc-apps/VideoX-Fun): cada clipe nace del ultimo cuadro del anterior, hasta 30s. Exige el perfil GPU.",
+      "wan2.1-i2v": "Wan2.1 I2V 14B (Alibaba, Apache-2.0). Clipe nativo ~5s a 16fps, 480p. GPU ~24GB con offload.",
+      "hunyuan-i2v": "HunyuanVideo-I2V (Tencent). 129 frames a 24fps (~5s). Acepta la licencia en Hugging Face.",
+      "hunyuan-t2v": "HunyuanVideo texto-a-video. Si pides 30s, los clipes siguientes salen de HunyuanVideo-I2V.",
+      "cogvideox1.5-i2v": "CogVideoX1.5-5B I2V (zai-org / THUDM). 81 frames a 8fps (~10s). Tres clipes cubren 30s.",
+      "cogvideox-5b-i2v": "CogVideoX-5B I2V. 49 frames a 8fps (~6s)."
+    };
+
+    function refreshEngineUi() {
+      const engine = document.getElementById("engineSelect").value;
+      document.getElementById("baseEngineWrap").classList.toggle("hidden", engine !== "videox-fun");
+      document.getElementById("chainWrap").classList.toggle("hidden", engine === "ffmpeg" || engine === "videox-fun");
+      document.getElementById("engineHint").textContent = ENGINE_HINTS[engine] || "";
+    }
+    document.getElementById("engineSelect").addEventListener("change", refreshEngineUi);
+    refreshEngineUi();
+
     // GENERATE VIDEO VIA N8N
     document.getElementById("generateVideoBtn").addEventListener("click", async () => {
       if (!selectedImageBase64) {
@@ -235,8 +291,11 @@
       }
       const n8nUrl = localStorage.getItem("n8n_url") || "https://n8n.tu-dominio.com/webhook/ai-video";
       const prompt = document.getElementById("promptInput").value;
-
-      statusBox.innerHTML = "<span class='text-cyan-400 animate-pulse'>Enviando imagen y activando flujo en n8n...</span>";
+      const motor = enginePayload();
+      const wait = motor.engine === "ffmpeg"
+        ? "Enviando imagen y activando flujo en n8n..."
+        : "Generando con el modelo elegido. Cada clipe puede tardar varios minutos...";
+      statusBox.innerHTML = `<span class='text-cyan-400 animate-pulse'>${wait}</span>`;
 
       try {
         const res = await fetch(n8nUrl, {
@@ -249,7 +308,8 @@
             action: "image-to-video",
             durationSeconds: 30,
             prompt: prompt,
-            imageBase64: selectedImageBase64
+            imageBase64: selectedImageBase64,
+            ...motor
           })
         });
 
@@ -355,7 +415,7 @@
           const res = await fetch(n8nUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-            body: JSON.stringify({ action: "camera-video", durationSeconds: 30 - camTimeLeft, videoBase64: reader.result })
+            body: JSON.stringify({ action: "camera-video", durationSeconds: 30 - camTimeLeft, videoBase64: reader.result, ...enginePayload() })
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           statusBox.innerHTML = "<span class='text-emerald-400 font-bold'>✓ Video enviado al n8n!</span>";
